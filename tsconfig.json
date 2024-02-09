@@ -13,8 +13,14 @@
       "dom",
       "dom.iterable",
       "esnext.asynciterable"
-    ]
+    ],
   },
+  "include": [
+    "./**/*.ts"
+  ],
+  "types": [
+    "node"
+  ],
   "exclude":[
     "./node_modules"
   ]

@@ -1,26 +1,26 @@
-import cluster from 'node:cluster';
-import http from 'node:http';
-import process from 'node:process';
+import cluster from 'cluster';
+import * as http from 'node:http';
+import * as process from 'node:process';
 import { Worker } from 'cluster';
-import { Server } from './server';
+import { UsersAPIServer } from './api/users-api-server';
 import * as os from 'os';
-import * as url from 'url';
+import { UsersDbService } from './db/users/users-db.service';
+import { Utils } from './utils';
 
 class LoadBalancer {
-	private readonly baseServerPort: number = 4000;
+	private readonly baseServerPort: number = (process.env.BASEPORT && parseInt(process.env.BASEPORT)) || 4000;
 	private readonly workers: Map<number, Worker> = new Map<number, Worker>();
 	private currentWorkerPort: number;
 
-	constructor() {
+	constructor(
+		private readonly clustersToCreate: number,
+	) {
 		this.initChildClusters();
 		this.launchBalancerServer();
 	}
 
 	private initChildClusters(): void {
-		// const clustersToCreate: number = os.availableParallelism() - 1;
-		const clustersToCreate: number = 2;
-
-		for (let i = 0; i < clustersToCreate; i++) {
+		for (let i = 0; i < this.clustersToCreate; i++) {
 			const workerId: number = i + 1;
 			const port: number = this.getServerPort(workerId);
 			const env = {
@@ -32,12 +32,12 @@ class LoadBalancer {
 		}
 
 		cluster.on('exit', (worker, code, signal) => {
-			console.log(`worker ${worker.process.pid} died`);
+			console.log(`worker ${ worker.process.pid } died`);
 		});
 	}
 
 	private getNextWorkerPort(): number {
-		const workerPorts: number[] = [...this.workers.keys()];
+		const workerPorts: number[] = Array.from(this.workers.keys());
 		const currentIndex: number = workerPorts.indexOf(this.currentWorkerPort);
 		const nextIndex: number = currentIndex + 1;
 		this.currentWorkerPort = workerPorts[nextIndex] || workerPorts[0];
@@ -46,15 +46,13 @@ class LoadBalancer {
 
 	private launchBalancerServer(): void {
 		const serverPort: number = this.getServerPort();
-		console.log(`Load balancer port: ${serverPort}`);
+		console.log(`Load balancer port: ${ serverPort }`);
 
 		http.createServer((req, res) => {
 			const port: number = this.getNextWorkerPort();
 			const host: string = req.headers['host']!.split(':')[0];
-			const redirectURL = `http://${host}:${port}${req.url}`;
-			res.writeHead(301, { Location: redirectURL });
-			// res.writeHead(301, { 'Location' : '/view/index.html' });
-
+			const redirectURL = `http://${ host }:${ port }${ req.url }`;
+			res.writeHead(307, { Location: redirectURL });
 			res.end();
 		}).listen(serverPort);
 	}
@@ -65,10 +63,14 @@ class LoadBalancer {
 }
 
 (function () {
+	const clustersToCreate: number = Utils.isMultiThreadArgvFlag()
+		? os.availableParallelism() - 1
+		: 1;
+
 	if (cluster.isPrimary) {
-		new LoadBalancer();
+		new LoadBalancer(clustersToCreate);
 	} else {
 		const port = (process.env.port && parseInt(process.env.port)) || 0;
-		new Server(port);
+		new UsersAPIServer(port, new UsersDbService());
 	}
 })();
