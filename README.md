@@ -1,4 +1,8 @@
 # This api provides access to Users db
+# To install dependencies run
+- npm install
+In case 403 errors occur - remove the package-lock.json and try again
+
 ## To run the app there are multiple options
 - "npm run start:dev" launches the server in dev mode,
 - "npm run start:prod" launches the server in production mode on 1 cluster,
