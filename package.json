@@ -8,7 +8,7 @@
 		"copyFiles": "copy .\\.env .\\dist\\.env && copy .\\src\\db\\users-db.json .\\dist\\db\\users-db.json",
 		"runDist": "node --env-file=./dist/.env ./dist/load-balancer.js",
 		"start:dev": "ts-node-dev --respawn src/load-balancer.ts",
-		"start:prod": "npm run build && npm run copyFiles && npm run runDist",
+		"start:prod": "npm run runDist",
 		"start:multi": "npm run start:prod multiThread"
 	},
 	"author": "",
